@@ -5,7 +5,7 @@
 #include <vigra/stdimage.hxx>
 #include <random>
 #include <vigra/convolution.hxx>
-#include "algorithms/valleyLocalization.cpp"
+#include "algorithms/fieldAlgorithms.cpp"
 #include "utils/Point.h"
 
 using namespace vigra;
@@ -40,13 +40,8 @@ int main(int argc, char** argv)
     FloatArray imageArray(imageInfo.shape());  
     // copy image data from file into array
     importImage(imageInfo, imageArray);
-//    vigra::ImageImportInfo imageInfo2("mutant_apple2.jpg");  
-    FloatArray valley = ValleyLocalization::valley(imageArray);
-    Point p = ValleyLocalization::localize(valley);
-    std::cout << "Valley at: ";
-    std::cout << p.x;
-    std::cout << ",";
-    std::cout << p.y;
-    exportImage(valley, "proto-valley.png");
+    FloatArray valley = FieldAlgorithms::valley(imageArray);
+    //Point p = FieldAlgorithms::localize(valley);
+    exportImage(valley, argv[2]);
     return 0;
 }
