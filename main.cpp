@@ -7,6 +7,7 @@
 #include <vigra/convolution.hxx>
 #include "algorithms/fieldAlgorithms.cpp"
 #include "utils/Point.h"
+#include <string.h>
 
 using namespace vigra;
 using namespace vigra::multi_math;
@@ -26,15 +27,9 @@ void  addNormalNoise(FloatArray &image, float sigma) {
     }
 }
 
-
-int main(int argc, char** argv)
-{
-    if (argc <= 1) {
-        std::cerr << "Please give me a picture as an argument!\n";
-        return 1;
-    }
+int makeFields(char** argv) {
     // read image given as first command-line argument
-    vigra::ImageImportInfo imageInfo(argv[1]);
+    vigra::ImageImportInfo imageInfo(argv[2]);
 
     
     FloatArray imageArray(imageInfo.shape());  
@@ -42,6 +37,29 @@ int main(int argc, char** argv)
     importImage(imageInfo, imageArray);
     FloatArray valley = FieldAlgorithms::valley(imageArray);
     //Point p = FieldAlgorithms::localize(valley);
-    exportImage(valley, argv[2]);
+    exportImage(valley, argv[3]);
     return 0;
+}
+
+
+int main(int argc, char** argv)
+{
+    if (argc <= 1) {
+        std::cerr << "Please give me a key as an command!\n";
+        return 1;
+    }
+    if (strcmp(argv[1], "svg") == 0) 
+    {
+        //Zuemra code here
+        std::cout << "building templates\n";
+        return 0;
+    }
+    else if (strcmp(argv[1], "fields") == 0) 
+    {
+        std::cout << "calculating fields\n";
+        return makeFields(argv);
+    }
+    std::cerr << "Unknown command key\n";
+    return 1;
+    
 }

@@ -20,11 +20,11 @@ MultiArray<2, float > FieldAlgorithms::valley(MultiArray<2, float> & image) {
     Pyramid pyramid(image);
     MultiArray<2, float >  mask = MultiArray<2, float >(5,5);
     mask = 50;
-    mask(3,1) = 0;
-    mask(3,2) = 0;
-    mask(3,3) = 0;
+    mask(2,1) = 0;
     mask(2,2) = 0;
-    mask(4,2) = 0;
+    mask(2,3) = 0;
+    mask(1,2) = 0;
+    mask(3,2) = 0;
     for (int i = 5; i > 0; i--)
     {
         MultiArray<2, float> resized(pyramid.get(i));
@@ -43,6 +43,7 @@ MultiArray<2, float > FieldAlgorithms::valley(MultiArray<2, float> & image) {
             }
         }
     }
+    std::cout << "on main image!\n";
     fastNormalizedCrossCorrelation(image, mask, valley);
     valley = deNormalize(valley, 0.5);
     return valley;
