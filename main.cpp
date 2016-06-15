@@ -8,6 +8,8 @@
 #include "algorithms/fieldAlgorithms.cpp"
 #include "utils/Point.h"
 #include <string.h>
+#include <vector>
+
 
 using namespace vigra;
 using namespace vigra::multi_math;
@@ -35,9 +37,13 @@ int makeFields(char** argv) {
     FloatArray imageArray(imageInfo.shape());  
     // copy image data from file into array
     importImage(imageInfo, imageArray);
-    FloatArray valley = FieldAlgorithms::valley(imageArray);
+    std::vector<FloatArray> fields = FieldAlgorithms::fieldsByErosionDilation(imageArray);
     //Point p = FieldAlgorithms::localize(valley);
-    exportImage(valley, argv[3]);
+    exportImage(fields[0], "./../images/results/valley.png");
+    exportImage(fields[1], "./../images/results/peak.png");
+    exportImage(fields[2], "./../images/results/edge.png");
+
+
     return 0;
 }
 
