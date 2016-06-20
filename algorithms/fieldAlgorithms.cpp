@@ -1,8 +1,6 @@
 #include "fieldAlgorithms.h"
 #include <vigra/multi_array.hxx>
 #include <vigra/correlation.hxx>
-#include "../utils/Point.h"
-#include "../utils/Point.cpp"
 #include <vigra/imagecontainer.hxx>
 #include "pyramid.cpp"
 #include <vigra/impex.hxx>
@@ -13,123 +11,65 @@
  #include <vigra/multi_morphology.hxx>
 #include <vigra/matrix.hxx>
 #include <vector>
+#include "../utils/Fields.cpp"
 
 
 
 using namespace vigra;
  using namespace vigra::multi_math;
 
-MultiArray<2, float > FieldAlgorithms::valley(MultiArray<2, float> & image) {
-    MultiArray<2, float > valley(image.shape());
-    valley = 0;
-    MultiArray<2, float > mask(3,3);
-    mask = 250;
-    mask(1,1) = 150;
-
-    //resizeImageNoInterpolation(protoMask, mask);
-    MultiArray<2, float> gradients(image.shape());
-    MultiArray<2, float> smoothed(image.shape());
-    gaussianSmoothMultiArray(image, smoothed, 3.0);
-    gaussianGradientMagnitude(smoothed,gradients,1.0);
-    //gaussianSmoothMultiArray(gradients, image, 8.0);
+Fields FieldAlgorithms::fieldsByLaplasian(MultiArray<2, float> & image) 
+{
+    MultiArray<2, float> valley(image.shape());
     Pyramid pyramid(image);
-    for (int i = 4; i > 0; i--)
+    for (int i = 3; i > 0; i--)
     {
-        //MultiArray<2, float> imageGradientMagnitudes(pyramid.get(i).shape());
         MultiArray<2, float> resized(pyramid.get(i));
-        //MultiArray<2, float> resizedG(pyramid.get(i));
-        //gaussianSmoothMultiArray(resized, resizedG, 2.0);
-        //gaussianGradientMagnitude(resizedG,imageGradientMagnitudes,1.0);
-        MultiArray<2, float> tmpArr(Shape2(resized.width(), resized.height()));
-        fastNormalizedCrossCorrelation(resized, mask, tmpArr);
-        //for (float val : tmpArr) 
-        //{
-            //if (val > 0.1)
-            //{
-                std::cout << "YES!\n";
-                tmpArr = deNormalize(tmpArr, 0.4);
-                valley += pyramid.toOriginalSize(tmpArr);
-                //resized = pyramid.toOriginalSize(resized);
-              //  exportImage(resized, "../images/resized.png");
-                //return valley;
-            //}
-        //}
+        MultiArray<2, float> tmpArr(resized.shape());
+        laplacianOfGaussianMultiArray(resized, tmpArr, 1.0);
+        valley += pyramid.toOriginalSize(tmpArr);
     }
-//    fastNormalizedCrossCorrelation(image, mask, valley);
- //   valley = deNormalize(valley, 0.5);
+    MultiArray<2, float> edgeField(image.shape());
+    MultiArray<2, float> peak = valley * -1;
+    float thrhld = valley[argMax(valley)] * 0.3;
+    threshold(valley, valley, thrhld);
+    thrhld = peak[argMax(peak)] * 0.3;
+    threshold(peak, peak, thrhld);
+    std::vector<Shape2> valleyLocals(0);
+    Fields fields(valley, valleyLocals, peak, edgeField, image);
+    return fields;
+}
 
-    gaussianSmoothMultiArray(image, smoothed, 3.0);
-    gaussianGradientMagnitude(smoothed,gradients,1.0);
-    gaussianSmoothMultiArray(gradients, valley, 8.0);
-    return valley;
-};
-MultiArray<2, float> FieldAlgorithms::deNormalize(MultiArray<2, float> normalized, float threshold)
+Fields FieldAlgorithms::fieldsByGradientPattern(MultiArray<2, float> & image) 
 {
-    for (int j = 0; j < normalized.size(); j++)
+    vigra::ImageImportInfo valleyInfo("../images/valleyMask.png");
+    MultiArray<2, float>  valleyArray(valleyInfo.shape());  
+    importImage(valleyInfo, valleyArray);
+    MultiArray<2, float > valleyMask(9,9);
+    resizeImageNoInterpolation(valleyArray, valleyMask);
+    vigra::ImageImportInfo peakInfo("../images/peakMask.png");
+    MultiArray<2, float>  peakArray(peakInfo.shape());  
+    importImage(peakInfo, peakArray);
+    MultiArray<2, float > peakMask(9,9);
+    resizeImageNoInterpolation(peakArray, peakMask);
+    Pyramid pyramid(image);
+    MultiArray<2, float> valleyField(image.shape());
+    MultiArray<2, float> peakField(image.shape());
+    for (int i = 3; i > 0; i--)
     {
-        if (normalized[j] > threshold)
-        {
-            normalized[j] = normalized[j] * 255;
-        }
-        else 
-        {
-            normalized[j] = 0;
-        }
+        MultiArray<2, float> resized(pyramid.get(i));
+        MultiArray<2, float> tmpArr = morphologyByGradientPattern(resized, valleyMask);
+        valleyField += pyramid.toOriginalSize(tmpArr);
+        tmpArr = morphologyByGradientPattern(resized, peakMask);
+        peakField += pyramid.toOriginalSize(tmpArr);
     }
-    return normalized;
-};
-  
-MultiArray<2, float > FieldAlgorithms::asOctaveGradientAngle(MultiArray<2, float >  image) 
-{
-    MultiArray<2, TinyVector<float, 2> > gradients(image.shape());
-    gaussianGradient(image,gradients,1.0);
-
-    for (int i = 0; i < gradients.size(); i++)
-    {
-        TinyVector<float, 2> gradient = gradients[i];
-        //Set very small values to 0;
-        if (gradient[0] < 0.1 && gradient[0] > -0.1) {
-            gradient[0] = 0;
-        }
-        if (gradient[1] < 0.1 && gradient[1] > -0.1) {
-            gradient[1] = 0;
-        }
-        float angle; //variing between 1/8 and 8/8 for all neighbouring pixels, or 0.
-        angle = (gradient[0] == 0 && gradient[1] == 0) ? 0 :
-                (gradient[0] == 0 && gradient[1] > 0) ? 1/8 :
-                (gradient[0] > 0 && gradient[1] > 0) ? 2/8 :
-                (gradient[0] > 0 && gradient[1] == 0) ? 3/8 :
-                (gradient[0] > 0 && gradient[1] < 0) ? 4/8 :
-                (gradient[0] == 0 && gradient[1] < 0) ? 5/8 :
-                (gradient[0] < 0 && gradient[1] < 0) ? 6/8 :
-                (gradient[0] < 0 && gradient[1] == 0) ? 7/8 :
-                //(gradient[0] < 0 && gradient[1] > 0) ? -> 8/8
-                8/8;
-                image[i] = angle;
-    }
-    return image;
+    MultiArray<2, float> edgeField(image.shape());
+    std::vector<Shape2> valleyLocals(0);
+    Fields fields(valleyField, valleyLocals, peakField, edgeField, image);
+    return fields;
 };
 
-Point FieldAlgorithms::localize(MultiArray<2, float> & valley)
-  {
-      float max = 0;
-      Point p(0,0);
-      for (int x = 0; x < valley.shape(0); x++)
-      {
-          for (int y = 0; y < valley.shape(1); y++)
-          {
-              float current = valley(x,y);
-              if (current > max)
-              {
-                  max = current;
-                  p = Point(x,y);
-              }
-          }
-      }
-      return p;
-  }; 
-
-std::vector<MultiArray<2, float>> FieldAlgorithms::fieldsByErosionDilation(MultiArray<2, float> & image) 
+Fields FieldAlgorithms::fieldsByErosionDilation(MultiArray<2, float> & image) 
 {
     Shape2 shape = image.shape();
     MultiArray<2, float> source(image);
@@ -153,12 +93,134 @@ std::vector<MultiArray<2, float>> FieldAlgorithms::fieldsByErosionDilation(Multi
     multiGrayscaleDilation(source, t1, radius);
     multiGrayscaleErosion(t1, t2, radius);
 
-    MultiArray<2, float> psi_v = t2 - source;
+    MultiArray<2, float> magnitudes(shape);
+    gaussianGradientMagnitude(image, magnitudes, 3.0);
+    MultiArray<2, float> dialtion(shape);
+    MultiArray<2, float> erosion(shape);
+    MultiArray<2, int> binary(binarizeByThreshold(magnitudes, 0.3));
+    multiBinaryDilation(binary, dialtion, 5.0);
+    multiBinaryErosion(dialtion, erosion, 5.0);
+    MultiArray<2, float> psi_v = erosion;
     MultiArray<2, float> psi_vSmooth(psi_v.shape());
     gaussianSmoothMultiArray(psi_v, psi_vSmooth, 8.0);
-    std::vector<MultiArray<2, float>> fields(3);
-    fields[0] = psi_vSmooth;
-    fields[1] = psi_pSmooth;
-    fields[2] = psi_e;
+    std::vector<Shape2> valleyLocals(0);
+
+    MultiArray<2, float> psi_v2 = t2 - source; 
+    Fields fields(psi_v2, valleyLocals, psi_pSmooth, psi_e, image);
     return fields;
 };
+
+
+void FieldAlgorithms::threshold(MultiArray<2, float> &basis, MultiArray<2, float> &target, float threshold)
+{
+    for (int j = 0; j < basis.size(); j++)
+    {
+        if (basis[j] < threshold)
+        {
+            target[j] = 0;
+        }
+    }
+};
+
+void FieldAlgorithms::thresholdGrad(MultiArray<2, float> &basis, MultiArray<2, TinyVector<float, 2>> &target, float threshold)
+{
+    for (int j = 0; j < basis.size(); j++)
+    {
+        if (basis[j] < threshold)
+        {
+            target[j][0] = 0;
+            target[j][1] = 0;
+        }
+    }
+};
+
+
+MultiArray<2, float > FieldAlgorithms::matchGradients(MultiArray<2, TinyVector<float, 2> > &imageGradients, MultiArray<2, TinyVector<float, 2> > &mask)
+{
+    MultiArray<2, float >  dest(imageGradients.shape());
+    dest = 0;
+    //to make sure, that the mask is always fully within the image, consider the mask shape
+    int diff = (mask.width() -1) / 2;
+    for (int x = diff; x + diff < imageGradients.width(); x ++) 
+    {
+        for (int y = diff; y + diff < imageGradients.height(); y++)
+        {
+            //The masks center is at point x,y now
+            //Every vector of the image currently 'covered' by the mask, is compared to its corresponding vector in the mask.
+            float vals = 0;
+            for (int xM = 0; xM < mask.width(); xM++)
+            {
+                for (int yM = 0; yM < mask.height(); yM++)
+                {
+                    TinyVector<float, 2> imageVal = imageGradients((x - diff) + xM, (y - diff) + yM);
+                    TinyVector<float, 2> maskVal = mask(xM, yM);
+                    vals += compareVectors(imageVal, maskVal);
+                }
+            }
+            //A perfect fit would be: vals / mask.size() = 1, but is unlikely, so be tolerant.
+            int res = vals / (mask.size());// * 0.15);
+            dest(x,y) = res;
+        }
+    }
+    return dest;
+};
+
+int FieldAlgorithms::compareVectors(TinyVector<float, 2> &compared, TinyVector<float, 2> &expected) 
+{
+    int val = 0;
+    int xC = compared[0];
+    int yC = compared[1];
+    int xE = expected[0];
+    int yE = expected[1];
+    if ((xC > 0 && xE > 0) || (xC < 0 && xE < 0))
+    {
+        val++;
+    }
+    if ((yC > 0 && yE > 0) || (yC < 0 && yE < 0))
+    {
+        val++;
+    }
+    if ((xC > yC && xE > yE) || (xC < yC && xE < yE))
+    {
+        val++;
+    }
+    return val;
+}
+
+MultiArray<2, float > FieldAlgorithms::morphologyByGradientPattern(MultiArray<2, float> & image, MultiArray<2,float> &mask) {
+    
+    Shape2 shape(image.shape());
+    MultiArray<2, TinyVector<float, 2>> imageGradients(shape);
+    MultiArray<2, TinyVector<float, 2>> maskGradients(mask.shape());
+    gaussianGradientMultiArray(image, imageGradients, 2.0);
+    gaussianGradientMultiArray(mask, maskGradients, 2.0);
+
+    //Threshold gradients with very small magnitude, 
+    //is a kind of smoothing noise, since we only consider directions from now on.
+    MultiArray<2, float> magnitudes(shape);
+    gaussianGradientMagnitude(image, magnitudes, 3.0);
+    float thrhld = magnitudes[argMax(magnitudes)] * 0.3;
+    thresholdGrad(magnitudes, imageGradients, thrhld);
+    //The actual machting:
+    MultiArray<2, float > gradientMatch = matchGradients(imageGradients, maskGradients);
+    //To enlarge the distance of interaction smooth with large variance
+    MultiArray<2, float> smoothed(shape);
+    gaussianSmoothMultiArray(gradientMatch, smoothed, 1.0);
+    return smoothed;
+};
+
+  MultiArray<2,int> FieldAlgorithms::binarizeByThreshold(MultiArray<2,float> &basis, float boarder)
+  {
+          float thrhld = basis[argMax(basis)] * boarder;
+          MultiArray<2,float> throlded(basis);
+          threshold(basis, throlded, thrhld);
+          MultiArray<2,int> binary(basis.shape());
+          for (int i = 0; i < throlded.size(); i++)
+          {
+              if (throlded[i] > 0)
+              {
+                  binary[i] = 1;
+              }
+          }
+          return binary;
+  }

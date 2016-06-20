@@ -6,10 +6,9 @@
 #include <random>
 #include <vigra/convolution.hxx>
 #include "algorithms/fieldAlgorithms.cpp"
-#include "utils/Point.h"
+#include "utils/Fields.h"
 #include <string.h>
 #include <vector>
-
 
 using namespace vigra;
 using namespace vigra::multi_math;
@@ -31,18 +30,26 @@ void  addNormalNoise(FloatArray &image, float sigma) {
 
 int makeFields(char** argv) {
     // read image given as first command-line argument
-    vigra::ImageImportInfo imageInfo(argv[2]);
-
-    
+    vigra::ImageImportInfo imageInfo(argv[2]);  
     FloatArray imageArray(imageInfo.shape());  
-    // copy image data from file into array
     importImage(imageInfo, imageArray);
-    std::vector<FloatArray> fields = FieldAlgorithms::fieldsByErosionDilation(imageArray);
-    //Point p = FieldAlgorithms::localize(valley);
-    exportImage(fields[0], "./../images/results/valley.png");
-    exportImage(fields[1], "./../images/results/peak.png");
-    exportImage(fields[2], "./../images/results/edge.png");
+    std::cout << "By matching with expected Gradients\n";
+    Fields fieldsGrad = FieldAlgorithms::fieldsByGradientPattern(imageArray);
+    exportImage(fieldsGrad.valleyField, "./../images/results/valleyGrad.png");
+    exportImage(fieldsGrad.peakField, "./../images/results/peakGrad.png");
+    FloatArray whatsInPeakGrad = fieldsGrad.intensityField * fieldsGrad.peakField;
+    exportImage(whatsInPeakGrad, "./../images/results/whatsInPeakGrad.png");
+    FloatArray whatsInValleyGrad = fieldsGrad.intensityField * fieldsGrad.valleyField;
+    exportImage(whatsInValleyGrad, "./../images/results/whatsInValleyGrad.png");
 
+    std::cout << "By scaling Laplasian of Gaussian\n";
+    Fields fieldsLoG = FieldAlgorithms::fieldsByLaplasian(imageArray);
+    exportImage(fieldsLoG.valleyField, "./../images/results/valleyLoG.png");
+    exportImage(fieldsLoG.peakField, "./../images/results/peakLoG.png");
+    FloatArray whatsInPeakLoG = fieldsLoG.intensityField * fieldsLoG.peakField;
+    exportImage(whatsInPeakLoG, "./../images/results/whatsInPeakLoG.png");
+    FloatArray whatsInValleyLoG = fieldsLoG.intensityField * fieldsLoG.valleyField;
+    exportImage(whatsInValleyLoG, "./../images/results/whatsInValleyLoG.png");
 
     return 0;
 }
