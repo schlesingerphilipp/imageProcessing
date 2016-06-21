@@ -7,6 +7,7 @@
 #include <vigra/convolution.hxx>
 #include "algorithms/fieldAlgorithms.cpp"
 #include "utils/Fields.h"
+#include "svgHandler.cpp"
 #include <string.h>
 #include <vector>
 
@@ -63,7 +64,12 @@ int main(int argc, char** argv)
     }
     if (strcmp(argv[1], "svg") == 0) 
     {
-        //Zuemra code here
+		svgHandler handler;
+		
+		char *file = handler.loadSVG(argv[2]);
+		Template t = handler.parseSVG(file);
+		handler.writeSVG(t, argv[3]);
+		
         std::cout << "building templates\n";
         return 0;
     }
