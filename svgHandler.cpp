@@ -137,7 +137,7 @@ Template parseSVG(char* fileString) {
 
 
 void writeSVG(Template t, char * targetFile) {
-	char meta_file[] = "metadata.svg";
+	char meta_file[] = "../images/templates/metadata.svg";
 	char *svg = loadSVG(meta_file);
 	
 	rapidxml::xml_document<> doc; 

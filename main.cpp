@@ -8,6 +8,9 @@
 #include "algorithms/fieldAlgorithms.cpp"
 #include "utils/Fields.h"
 #include "svgHandler.cpp"
+#include "Circle.cpp"
+#include "Parabole.cpp"
+#include "Curve.cpp"
 #include <string.h>
 #include <vector>
 
