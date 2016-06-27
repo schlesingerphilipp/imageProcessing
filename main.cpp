@@ -93,9 +93,9 @@ int main(int argc, char** argv)
     {
 		svgHandler handler;
 		
-		//char *file = handler.loadSVG(argv[2]);
-		//Template t = handler.parseSVG(file);
-		//handler.writeSVG(t, argv[3]);
+		char *file = handler.loadSVG(argv[2]);
+		Template t = handler.parseSVG(file);
+		handler.writeSVG(t, argv[3]);
 		
         std::cout << "building templates\n";
         return 0;
