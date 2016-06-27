@@ -12,6 +12,7 @@
 #include <vigra/matrix.hxx>
 #include <vector>
 #include "../utils/Fields.cpp"
+#include <stdlib.h>
 
 
 
@@ -35,7 +36,7 @@ Fields FieldAlgorithms::fieldsByLaplasian(MultiArray<2, float> & image)
     threshold(valley, valley, thrhld);
     thrhld = peak[argMax(peak)] * 0.3;
     threshold(peak, peak, thrhld);
-    std::vector<Shape2> valleyLocals(0);
+    std::vector<Shape2> valleyLocals(localizePOI(image));
     Fields fields(valley, valleyLocals, peak, edgeField, image);
     return fields;
 }
@@ -76,7 +77,7 @@ Fields FieldAlgorithms::fieldsByErosionDilation(MultiArray<2, float> & image)
     MultiArray<2, float> t1(shape);
     MultiArray<2, float> t2(shape);
 
-    double radius = 2; //Sinnvoll?
+    double radius = 9; //Sinnvoll?
 
     multiGrayscaleErosion(source, t1, radius);
     multiGrayscaleDilation(source, t2, radius);
@@ -89,27 +90,103 @@ Fields FieldAlgorithms::fieldsByErosionDilation(MultiArray<2, float> & image)
     MultiArray<2, float> psi_p = source - t2;
     MultiArray<2, float> psi_pSmooth(psi_p.shape());
     gaussianSmoothMultiArray(psi_p, psi_pSmooth, 8.0);
-    //Closing of source
-    multiGrayscaleDilation(source, t1, radius);
-    multiGrayscaleErosion(t1, t2, radius);
-
-    MultiArray<2, float> magnitudes(shape);
-    gaussianGradientMagnitude(image, magnitudes, 3.0);
-    MultiArray<2, float> dialtion(shape);
-    MultiArray<2, float> erosion(shape);
-    MultiArray<2, int> binary(binarizeByThreshold(magnitudes, 0.3));
-    multiBinaryDilation(binary, dialtion, 5.0);
-    multiBinaryErosion(dialtion, erosion, 5.0);
-    MultiArray<2, float> psi_v = erosion;
+    //Opening of source
+    MultiArray<2, float> inverse = source * -1;
+    multiGrayscaleErosion(inverse, t1, 9);
+    multiGrayscaleDilation(t1, t2, 9);
+    MultiArray<2, float> psi_v = t2 - inverse; 
     MultiArray<2, float> psi_vSmooth(psi_v.shape());
-    gaussianSmoothMultiArray(psi_v, psi_vSmooth, 8.0);
+    gaussianSmoothMultiArray(psi_v, psi_vSmooth, 3.0);
     std::vector<Shape2> valleyLocals(0);
-
-    MultiArray<2, float> psi_v2 = t2 - source; 
-    Fields fields(psi_v2, valleyLocals, psi_pSmooth, psi_e, image);
+    Fields fields(psi_vSmooth, valleyLocals, psi_pSmooth, psi_e, image);
     return fields;
 };
 
+
+std::vector<Shape2> FieldAlgorithms::localizePOI(MultiArray<2, float> &image)
+{
+    std::vector<Shape2> pois(3);
+    for (int i = 0; i < pois.size(); i++)
+    {
+        int v1 = std::rand() % image.size() -1;         // v1 in the range 0 to image.size()
+        Shape2 poi = localizeByFollowingLocalMaxima(image, image.scanOrderIndexToCoordinate(v1));
+        pois[i] = poi;
+    }
+    return pois;
+
+}
+Shape2 FieldAlgorithms::localizeByFollowingLocalMaxima(const MultiArray<2, float> &image, Shape2 current)
+{
+
+    //Open viewBox of image with center at current
+    int upperLeftX = current[0] - ((image.width() / 10) / 2);
+    upperLeftX = upperLeftX > -1 ? upperLeftX : 0;
+    int upperLeftY = current[1] - ((image.height() / 10) / 2);
+    upperLeftY = upperLeftY > -1 ? upperLeftY : 0;
+    Shape2 upperLeft(upperLeftX, upperLeftY);
+     
+
+    int lowerRightX = current[0] + ((image.width() / 10) / 2);
+    lowerRightX = lowerRightX < image.width() ? lowerRightX : image.width() -1;
+    int lowerRightY = current[1] + ((image.height() / 10) / 2);
+    lowerRightY = lowerRightY < image.height() ? lowerRightY : image.height() -1;
+    Shape2 lowerRight(lowerRightX, lowerRightY);
+    MultiArrayView<2, float> box = image.subarray(upperLeft, lowerRight);
+    //3: get local max of view as next 
+    int maxIndex = argMax(box);
+    if (maxIndex == -1)
+    {
+            std::cout << "Something went wrong: argMax returned -1";
+        return current;
+    }
+    Shape2 max(box.scanOrderIndexToCoordinate(maxIndex));
+    Shape2 next(upperLeftX + max[0], upperLeftY + max[1]);
+    if (next == current)
+    {
+        return next;
+    }
+    return localizeByFollowingLocalMaxima(image, next);
+}
+
+std::vector<Shape2> FieldAlgorithms::localizePOIExample(const MultiArray<2, float> &image,  MultiArray<2, RGBValue<UInt8> > &rgb_array)
+{
+    std::vector<Shape2> pois(30);
+    float thld = image[argMax(image)] * 0.2;
+    for (int i = 0; i < pois.size(); i++)
+    {
+        int v1 = std::rand() % image.size() -1;         // v1 in the range 0 to image.size()
+        Shape2 poi(image.scanOrderIndexToCoordinate(v1));
+        poi = localizeByFollowingLocalMaxima(image, poi);
+        if (image[poi] > thld)
+        {
+            pois[i] = poi;
+            MultiArrayView<2, RGBValue<UInt8> > markAsStep(rgb_array.subarray(Shape2(poi[0] - 5, poi[1] -5), Shape2(poi[0] +5, poi[1] +5)));
+            for (RGBValue<UInt8> & val : markAsStep)
+            {
+                val.setRed(200);
+            }
+        }
+        else
+        {
+            i--;
+        }
+    }
+    return pois;
+
+}
+
+
+bool FieldAlgorithms::contains(std::vector<Shape2> &vector, Shape2 &shape)
+{
+    for (Shape2 other : vector)
+    {
+        if (other == shape)
+        {
+            return true;
+        }
+    }
+    return false;
+}
 
 void FieldAlgorithms::threshold(MultiArray<2, float> &basis, MultiArray<2, float> &target, float threshold)
 {
@@ -157,8 +234,7 @@ MultiArray<2, float > FieldAlgorithms::matchGradients(MultiArray<2, TinyVector<f
                     vals += compareVectors(imageVal, maskVal);
                 }
             }
-            //A perfect fit would be: vals / mask.size() = 1, but is unlikely, so be tolerant.
-            int res = vals / (mask.size());// * 0.15);
+            int res = vals / (mask.size());
             dest(x,y) = res;
         }
     }
@@ -205,8 +281,8 @@ MultiArray<2, float > FieldAlgorithms::morphologyByGradientPattern(MultiArray<2,
     MultiArray<2, float > gradientMatch = matchGradients(imageGradients, maskGradients);
     //To enlarge the distance of interaction smooth with large variance
     MultiArray<2, float> smoothed(shape);
-    gaussianSmoothMultiArray(gradientMatch, smoothed, 1.0);
-    return smoothed;
+    gaussianSmoothMultiArray(gradientMatch, smoothed, 3.0);
+    return gradientMatch;
 };
 
   MultiArray<2,int> FieldAlgorithms::binarizeByThreshold(MultiArray<2,float> &basis, float boarder)

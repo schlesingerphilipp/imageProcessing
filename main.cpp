@@ -52,6 +52,30 @@ int makeFields(char** argv) {
     FloatArray whatsInValleyLoG = fieldsLoG.intensityField * fieldsLoG.valleyField;
     exportImage(whatsInValleyLoG, "./../images/results/whatsInValleyLoG.png");
 
+    std::cout << "By Erosion, Dialation Morphology\n";
+    Fields fieldsMorph = FieldAlgorithms::fieldsByErosionDilation(imageArray);
+    exportImage(fieldsMorph.valleyField, "./../images/results/valleyMorph.png");
+    exportImage(fieldsMorph.peakField, "./../images/results/peakMorph.png");
+    FloatArray whatsInPeakMorph = fieldsMorph.intensityField * fieldsMorph.peakField;
+    exportImage(whatsInPeakMorph, "./../images/results/whatsInPeakMorph.png");
+    FloatArray whatsInValleyMorph = fieldsMorph.intensityField * fieldsMorph.valleyField;
+    exportImage(whatsInValleyMorph, "./../images/results/whatsInValleyMorph.png");
+    
+    return 0;
+}
+
+int exampleLocalization(char** argv)
+{
+     vigra::ImageImportInfo imageInfo(argv[2]);  
+    FloatArray imageArray(imageInfo.shape());  
+    importImage(imageInfo, imageArray);
+    Fields fieldsGrad = FieldAlgorithms::fieldsByGradientPattern(imageArray);
+    exportImage(fieldsGrad.valleyField, "./../images/results/valleyGrad.png");
+    vigra::ImageImportInfo rgbIm("./../images/results/valleyGrad.png");  
+    MultiArray<2, RGBValue<UInt8> > rgb_array(rgbIm.shape());
+    importImage(rgbIm, rgb_array);
+    FieldAlgorithms::localizePOIExample(fieldsGrad.valleyField, rgb_array);
+    exportImage(rgb_array, "./../images/results/localizationExample.png");
     return 0;
 }
 
@@ -66,9 +90,9 @@ int main(int argc, char** argv)
     {
 		svgHandler handler;
 		
-		char *file = handler.loadSVG(argv[2]);
-		Template t = handler.parseSVG(file);
-		handler.writeSVG(t, argv[3]);
+		//char *file = handler.loadSVG(argv[2]);
+		//Template t = handler.parseSVG(file);
+		//handler.writeSVG(t, argv[3]);
 		
         std::cout << "building templates\n";
         return 0;
@@ -77,6 +101,10 @@ int main(int argc, char** argv)
     {
         std::cout << "calculating fields\n";
         return makeFields(argv);
+    }
+    else if (strcmp(argv[1], "localization") == 0) 
+    {
+        return exampleLocalization(argv);
     }
     std::cerr << "Unknown command key\n";
     return 1;
