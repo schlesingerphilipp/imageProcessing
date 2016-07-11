@@ -6,6 +6,8 @@
 #include <random>
 #include <vigra/convolution.hxx>
 #include "algorithms/fieldAlgorithms.cpp"
+#include "algorithms/deformation.cpp"
+
 #include "utils/Fields.h"
 #include "svgHandler.cpp"
 #include "Circle.cpp"
@@ -82,6 +84,20 @@ int exampleLocalization(char** argv)
     return 0;
 }
 
+int exampleFit(char** argv)
+{
+    vigra::ImageImportInfo imageInfo(argv[2]);  
+    FloatArray imageArray(imageInfo.shape());  
+    importImage(imageInfo, imageArray);
+    Fields fieldsGrad = FieldAlgorithms::fieldsByGradientPattern(imageArray);
+    Deformation deformer(fieldsGrad);
+    int radius = deformer.scaleByRadius();
+    std::cout << "radius: ";
+    std::cout << radius;
+    std::cout << "\n";
+    return 0;
+}
+
 
 int main(int argc, char** argv)
 {
@@ -108,6 +124,10 @@ int main(int argc, char** argv)
     else if (strcmp(argv[1], "localization") == 0) 
     {
         return exampleLocalization(argv);
+    }
+    else if (strcmp(argv[1], "fit") == 0) 
+    {
+        return exampleFit(argv);
     }
     std::cerr << "Unknown command key\n";
     return 1;

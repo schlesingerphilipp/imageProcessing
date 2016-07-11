@@ -30,19 +30,32 @@ Fields FieldAlgorithms::fieldsByLaplasian(MultiArray<2, float> & image)
         laplacianOfGaussianMultiArray(resized, tmpArr, 1.0);
         valley += pyramid.toOriginalSize(tmpArr);
     }
-    MultiArray<2, float> edgeField(image.shape());
     MultiArray<2, float> peak = valley * -1;
+    //remove DC component
     float thrhld = valley[argMax(valley)] * 0.3;
     threshold(valley, valley, thrhld);
     thrhld = peak[argMax(peak)] * 0.3;
     threshold(peak, peak, thrhld);
+    
+
+    //Edge as Gradients
+    MultiArray<2, float> edgeField(image.shape());
+    gaussianGradientMagnitude(image, edgeField, 1.0);
+
+    //Localize
     std::vector<Shape2> valleyLocals(localizePOI(image));
+
+    //Result as Field Object
     Fields fields(valley, valleyLocals, peak, edgeField, image);
+    //A heuristic initialization of the localization, as a priori known position
+    Shape2 nextToIris = Shape2(image.width() / 2, image.height() / 2);
+    fields.specializedIrisValley = localizeByFollowingLocalMaxima(image, nextToIris);
     return fields;
 }
 
 Fields FieldAlgorithms::fieldsByGradientPattern(MultiArray<2, float> & image) 
 {
+    //Get Masks for Valley and Peak
     vigra::ImageImportInfo valleyInfo("../images/valleyMask.png");
     MultiArray<2, float>  valleyArray(valleyInfo.shape());  
     importImage(valleyInfo, valleyArray);
@@ -53,6 +66,8 @@ Fields FieldAlgorithms::fieldsByGradientPattern(MultiArray<2, float> & image)
     importImage(peakInfo, peakArray);
     MultiArray<2, float > peakMask(9,9);
     resizeImageNoInterpolation(peakArray, peakMask);
+
+    //Actual algorithm for Blobs
     Pyramid pyramid(image);
     MultiArray<2, float> valleyField(image.shape());
     MultiArray<2, float> peakField(image.shape());
@@ -64,11 +79,23 @@ Fields FieldAlgorithms::fieldsByGradientPattern(MultiArray<2, float> & image)
         tmpArr = morphologyByGradientPattern(resized, peakMask);
         peakField += pyramid.toOriginalSize(tmpArr);
     }
+
+    //Edge as Gradients
     MultiArray<2, float> edgeField(image.shape());
-    std::vector<Shape2> valleyLocals(0);
+    gaussianGradientMagnitude(image, edgeField, 1.0);
+
+    //Localize
+    std::vector<Shape2> valleyLocals(localizePOI(image));
+
+    //Result as Field Object
     Fields fields(valleyField, valleyLocals, peakField, edgeField, image);
+    //A heuristic initialization of the localization, as a priori known position
+    Shape2 nextToIris = Shape2(image.width() / 2, image.height() / 2);
+    fields.specializedIrisValley = localizeByFollowingLocalMaxima(image, nextToIris);
     return fields;
 };
+
+
 
 Fields FieldAlgorithms::fieldsByErosionDilation(MultiArray<2, float> & image) 
 {
