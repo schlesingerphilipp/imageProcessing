@@ -85,13 +85,15 @@ Fields FieldAlgorithms::fieldsByGradientPattern(MultiArray<2, float> & image)
     gaussianGradientMagnitude(image, edgeField, 1.0);
 
     //Localize
-    std::vector<Shape2> valleyLocals(localizePOI(image));
+    MultiArray<2, float> smoothed(valleyField.shape());
+    gaussianSmoothMultiArray(valleyField, smoothed, 6.0);
+    std::vector<Shape2> valleyLocals(localizePOI(smoothed));
 
     //Result as Field Object
     Fields fields(valleyField, valleyLocals, peakField, edgeField, image);
     //A heuristic initialization of the localization, as a priori known position
-    Shape2 nextToIris = Shape2(image.width() / 2, image.height() / 2);
-    fields.specializedIrisValley = localizeByFollowingLocalMaxima(image, nextToIris);
+    Shape2 nextToIris = Shape2(image.width() / 2 + 10, image.height() / 2);
+    fields.specializedIrisValley = Shape2(image.width() / 2 + 10, image.height() / 2 + 15);//localizeByFollowingLocalMaxima(valleyField, nextToIris);
     return fields;
 };
 
@@ -132,11 +134,14 @@ Fields FieldAlgorithms::fieldsByErosionDilation(MultiArray<2, float> & image)
 
 std::vector<Shape2> FieldAlgorithms::localizePOI(MultiArray<2, float> &image)
 {
-    std::vector<Shape2> pois(3);
+    std::vector<Shape2> pois(1);
     for (int i = 0; i < pois.size(); i++)
     {
-        int v1 = std::rand() % image.size() -1;         // v1 in the range 0 to image.size()
-        Shape2 poi = localizeByFollowingLocalMaxima(image, image.scanOrderIndexToCoordinate(v1));
+        int v1 = std::rand() % image.size() -1; 
+         //int maxIndex = argMax(box);
+         //Shape2 max(box.scanOrderIndexToCoordinate(maxIndex));
+         //image.scanOrderIndexToCoordinate(v1)
+        Shape2 poi = localizeByFollowingLocalMaxima(image, Shape2(image.width()/2, image.height()/2));
         pois[i] = poi;
     }
     return pois;
@@ -306,9 +311,7 @@ MultiArray<2, float > FieldAlgorithms::morphologyByGradientPattern(MultiArray<2,
     thresholdGrad(magnitudes, imageGradients, thrhld);
     //The actual machting:
     MultiArray<2, float > gradientMatch = matchGradients(imageGradients, maskGradients);
-    //To enlarge the distance of interaction smooth with large variance
-    MultiArray<2, float> smoothed(shape);
-    gaussianSmoothMultiArray(gradientMatch, smoothed, 3.0);
+   
     return gradientMatch;
 };
 
