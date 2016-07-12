@@ -7,7 +7,7 @@
  using namespace vigra;
  using namespace vigra::multi_math;
 
-int Deformation::scaleByRadius() 
+int Deformation::scaleByRadius(Shape2 &local) 
 {
     
     MultiArray<2, int> distanceToCenter(fields.edgeField.shape());
@@ -15,14 +15,14 @@ int Deformation::scaleByRadius()
     {
         for (int iY = 0; iY < distanceToCenter.height(); iY++)
         {           
-            int distance = std::sqrt(pow((fields.specializedIrisValley[0] - iX),2) + std::pow((fields.specializedIrisValley[1] - iY),2));
+            int distance = std::sqrt(pow((local[0] - iX),2) + std::pow((local[1] - iY),2));
             distanceToCenter(iX, iY) = distance;
         }
     }
-    exportImage(distanceToCenter,"./../images/results/distance.png");    
-    drawFunctions(distanceToCenter);
-    RadiusResult two = getValueForRadius(distanceToCenter, 1);
-    RadiusResult one = getValueForRadius(distanceToCenter, distanceToCenter.width() / 2 );
+    //exportImage(distanceToCenter,"./../images/results/distance.png");    
+    //drawFunctions(distanceToCenter);
+    RadiusResult two = getValueForRadius(distanceToCenter, 10);
+    RadiusResult one = getValueForRadius(distanceToCenter, distanceToCenter.width() / 4 );
     /*MultiArray<2,int> plotTemperature(distanceToCenter.shape());
     for(int i = 3; i < plotTemperature.width() / 2; i++)
     {
@@ -30,11 +30,45 @@ int Deformation::scaleByRadius()
         plotTemperature(i, y) = 1;
     }
     exportImage(plotTemperature,"./../images/results/plotTemperature.png");    */
-    return getRadiusRecursivly(distanceToCenter, one, two, 18).radius;    
+    RadiusResult rr = getRadiusRecursivly(distanceToCenter, one, two, 10.0);
+    //rr.radius = 10;
+    for (int i = 0; i < distanceToCenter.size();i++)
+    {
+        if (distanceToCenter[i] == rr.radius)
+        {
+            fields.intensityField[i] = 255;
+        }
+        if (distanceToCenter[i] == rr.radius +1)
+        {
+            fields.intensityField[i] = 255;
+        }
+        if (distanceToCenter[i] == rr.radius +2)
+        {
+            fields.intensityField[i] = 255;
+        }
+        if (distanceToCenter[i] == rr.radius +3)
+        {
+            fields.intensityField[i] = 255;
+        }
+        if (distanceToCenter[i] == rr.radius -1)
+        {
+            fields.intensityField[i] = 255;
+        }
+        if (distanceToCenter[i] == rr.radius -2)
+        {
+            fields.intensityField[i] = 255;
+        }
+        if (distanceToCenter[i] == rr.radius -3)
+        {
+            fields.intensityField[i] = 255;
+        }
+    }
+    return rr.radius; 
 };
 
 RadiusResult Deformation::getRadiusRecursivly(MultiArray<2, int> &distanceToCenter, RadiusResult &one, RadiusResult &two, float temperature)
 {
+    std::cout << ".";
     /*std::cout << "\n 1 radius:";
     std::cout << one.radius;
     std::cout << "\n 1 val:";
@@ -47,17 +81,24 @@ RadiusResult Deformation::getRadiusRecursivly(MultiArray<2, int> &distanceToCent
     */
     if (one.radius == two.radius)
     {
-        std::cout << "same radius";
-        return one;
+        if(temperature < 1)
+        {
+            return one;
+        }
+        //
+        //one.radius += 1;
+        //return one;
     }
     float derivative = (one.getValue() - two.getValue()) / (one.radius - two.radius);
-    derivative = derivative < 0 && derivative > -1 ? -1 : derivative > 0 && derivative < 1 ? 1 : derivative;
-    if(temperature < 1 && std::abs(derivative) < 2)
+    if(temperature < 1 )//|| std::abs(derivative) < 1.1)
     {
         return one;
     }
-    int nextRadius = (one.radius + derivative * temperature);
-    nextRadius = std::abs(nextRadius) % (distanceToCenter.width() / 2);
+    derivative = derivative < 0 && derivative > -1 ? -1 : derivative > 0 && derivative < 1 ? 1 : derivative;
+    int nextRadius = one.radius + derivative;//(one.radius + derivative * temperature);
+        std::cout << nextRadius;
+
+    //nextRadius = nextRadius % (distanceToCenter.width() / 2);
     //nextRadius = nextRadius < 0 ? distanceToCenter.width() / 2 : nextRadius > distanceToCenter.width() / 2 ? 1 : nextRadius;
     RadiusResult next = getValueForRadius(distanceToCenter, nextRadius);
     return getRadiusRecursivly(distanceToCenter, next, one, temperature * 0.95);
@@ -87,7 +128,7 @@ RadiusResult Deformation::getValueForRadius(MultiArray<2, int> &distanceToCenter
 
     float valleys = valley / valleyCount;
     float edges = edge / edgeCount;
-    RadiusResult res(radius, valleys, edges, 2);
+    RadiusResult res(radius, valleys, edges, 1);
     return res;
 };
 

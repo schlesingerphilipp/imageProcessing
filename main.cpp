@@ -91,10 +91,16 @@ int exampleFit(char** argv)
     importImage(imageInfo, imageArray);
     Fields fieldsGrad = FieldAlgorithms::fieldsByGradientPattern(imageArray);
     Deformation deformer(fieldsGrad);
-    int radius = deformer.scaleByRadius();
-    std::cout << "radius: ";
-    std::cout << radius;
-    std::cout << "\n";
+    for(Shape2 local : fieldsGrad.valleys)
+    {
+        int radius = deformer.scaleByRadius(local);
+        std::cout << "radius: ";
+        std::cout << radius;
+        std::cout << "\n";
+    }
+    FloatArray abc = deformer.fields.intensityField * deformer.fields.valleyField;
+    exportImage(abc, "./../images/results/scaleResult.png");
+    exportImage(deformer.fields.valleyField, "./../images/results/valley.png");
     return 0;
 }
 
