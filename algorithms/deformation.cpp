@@ -7,7 +7,7 @@
  using namespace vigra;
  using namespace vigra::multi_math;
 
-int Deformation::scaleByRadius(Shape2 &local) 
+int Deformation::scaleByRadius() 
 {
     
     MultiArray<2, int> distanceToCenter(fields.edgeField.shape());
