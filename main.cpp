@@ -9,10 +9,6 @@
 #include "algorithms/deformation.cpp"
 
 #include "utils/Fields.h"
-#include "svgHandler.cpp"
-#include "Circle.cpp"
-#include "Parabole.cpp"
-#include "Curve.cpp"
 #include <string.h>
 #include <vector>
 
@@ -23,16 +19,6 @@ typedef MultiArray<2, RGBValue <unsigned char> > RGBArray;
 typedef MultiArray<2, float > FloatArray;
 typedef MultiArrayView<2, RGBValue<unsigned char> > RGBView;
 
-
-
-void  addNormalNoise(FloatArray &image, float sigma) {
-    std::default_random_engine generator;
-    std::normal_distribution<double> distribution(0.0,sigma);
-    for (float &pixel : image) {
-        float x = (distribution(generator) + pixel);
-        pixel = (x <= 255) ?  ((x >= 0) ? x : 0) : 255;
-    }
-}
 
 int makeFields(char** argv) {
     // read image given as first command-line argument
@@ -98,9 +84,8 @@ int exampleFit(char** argv)
         std::cout << radius;
         std::cout << "\n";
     }
-    FloatArray abc = deformer.fields.intensityField * deformer.fields.valleyField;
+    FloatArray abc = deformer.fields.intensityField;
     exportImage(abc, "./../images/results/scaleResult.png");
-    exportImage(deformer.fields.valleyField, "./../images/results/valley.png");
     return 0;
 }
 
@@ -113,13 +98,13 @@ int main(int argc, char** argv)
     }
     if (strcmp(argv[1], "svg") == 0) 
     {
-		svgHandler handler;
+		/*svgHandler handler;
 		
 		char *file = handler.loadSVG(argv[2]);
 		Template t = handler.parseSVG(file);
 		handler.writeSVG(t, argv[3]);
 		
-        std::cout << "building templates\n";
+        std::cout << "building templates\n";*/
         return 0;
     }
     else if (strcmp(argv[1], "fields") == 0) 

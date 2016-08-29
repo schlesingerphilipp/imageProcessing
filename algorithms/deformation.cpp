@@ -7,7 +7,7 @@
  using namespace vigra;
  using namespace vigra::multi_math;
 
-int Deformation::scaleByRadius() 
+int Deformation::scaleByRadius(Shape2 &local) 
 {
     
     MultiArray<2, int> distanceToCenter(fields.edgeField.shape());
@@ -19,7 +19,6 @@ int Deformation::scaleByRadius()
             distanceToCenter(iX, iY) = distance;
         }
     }
-    //exportImage(distanceToCenter,"./../images/results/distance.png");    
     //drawFunctions(distanceToCenter);
     RadiusResult two = getValueForRadius(distanceToCenter, 1);
     RadiusResult one = getValueForRadius(distanceToCenter, 2 );
@@ -32,6 +31,7 @@ int Deformation::scaleByRadius()
     exportImage(plotTemperature,"./../images/results/plotTemperature.png"); */
     RadiusResult rr = getRadiusRecursivly(distanceToCenter, one, two, 10.0);
     //rr.radius = 10;
+    //draw a circle with the radius at the localization
     for (int i = 0; i < distanceToCenter.size();i++)
     {
         if (distanceToCenter[i] == rr.radius)

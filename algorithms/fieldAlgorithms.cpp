@@ -56,6 +56,7 @@ Fields FieldAlgorithms::fieldsByLaplasian(MultiArray<2, float> & image)
 Fields FieldAlgorithms::fieldsByGradientPattern(MultiArray<2, float> & image) 
 {
     //Get Masks for Valley and Peak
+    //
     vigra::ImageImportInfo valleyInfo("../images/valleyMask.png");
     MultiArray<2, float>  valleyArray(valleyInfo.shape());  
     importImage(valleyInfo, valleyArray);
