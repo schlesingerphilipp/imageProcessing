@@ -1,2 +1,6 @@
 build/**
 build
+images/**
+images
+.vscode
+.vscode/**
