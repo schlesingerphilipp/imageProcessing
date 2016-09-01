@@ -11,7 +11,7 @@ MultiArray<2, float > Pyramid::get(int level)
 
     // resize result image to appropriate size
     MultiArray<2, float > resized(Shape2(newwidth, newheight));
-    resizeImageNoInterpolation(original, resized);
+    resizeImageNoInterpolation(original, resized);//TODO check performance (CPU and resizing blurring, shift)
     return resized;  
 }
 MultiArray<2, float > Pyramid::toOriginalSize(MultiArray<2, float > smaller)

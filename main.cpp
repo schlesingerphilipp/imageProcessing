@@ -25,8 +25,11 @@ int makeFields(char** argv) {
     vigra::ImageImportInfo imageInfo(argv[2]);  
     FloatArray imageArray(imageInfo.shape());  
     importImage(imageInfo, imageArray);
+
+    //Find the representations for 3 different methods
     std::cout << "By matching with expected Gradients\n";
     Fields fieldsGrad = FieldAlgorithms::fieldsByGradientPattern(imageArray);
+    //Draw them
     exportImage(fieldsGrad.valleyField, "./../images/results/valleyGrad.png");
     exportImage(fieldsGrad.peakField, "./../images/results/peakGrad.png");
     FloatArray whatsInPeakGrad = fieldsGrad.intensityField * fieldsGrad.peakField;
@@ -61,10 +64,12 @@ int exampleLocalization(char** argv)
     FloatArray imageArray(imageInfo.shape());  
     importImage(imageInfo, imageArray);
     Fields fieldsGrad = FieldAlgorithms::fieldsByGradientPattern(imageArray);
+    //reimport as rgb
     exportImage(fieldsGrad.valleyField, "./../images/results/valleyGrad.png");
     vigra::ImageImportInfo rgbIm("./../images/results/valleyGrad.png");  
     MultiArray<2, RGBValue<UInt8> > rgb_array(rgbIm.shape());
     importImage(rgbIm, rgb_array);
+    //This draws you into the picture where blobs got localized
     FieldAlgorithms::localizePOIExample(fieldsGrad.valleyField, rgb_array);
     exportImage(rgb_array, "./../images/results/localizationExample.png");
     return 0;
@@ -84,8 +89,9 @@ int exampleFit(char** argv)
         std::cout << radius;
         std::cout << "\n";
     }
-    FloatArray abc = deformer.fields.intensityField;
-    exportImage(abc, "./../images/results/scaleResult.png");
+    //We did draw circles according to the radius and its localization here
+    FloatArray visualize = deformer.fields.intensityField;
+    exportImage(visualize, "./../images/results/scaleResult.png");
     return 0;
 }
 

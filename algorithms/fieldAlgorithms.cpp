@@ -56,7 +56,7 @@ Fields FieldAlgorithms::fieldsByLaplasian(MultiArray<2, float> & image)
 Fields FieldAlgorithms::fieldsByGradientPattern(MultiArray<2, float> & image) 
 {
     //Get Masks for Valley and Peak
-    //
+    //not efficient, but can be scaled easly
     vigra::ImageImportInfo valleyInfo("../images/valleyMask.png");
     MultiArray<2, float>  valleyArray(valleyInfo.shape());  
     importImage(valleyInfo, valleyArray);
@@ -68,10 +68,10 @@ Fields FieldAlgorithms::fieldsByGradientPattern(MultiArray<2, float> & image)
     MultiArray<2, float > peakMask(9,9);
     resizeImageNoInterpolation(peakArray, peakMask);
 
-    //Actual algorithm for Blobs
     Pyramid pyramid(image);
     MultiArray<2, float> valleyField(image.shape());
     MultiArray<2, float> peakField(image.shape());
+    //go 3 octaves
     for (int i = 3; i > 0; i--)
     {
         MultiArray<2, float> resized(pyramid.get(i));
@@ -85,7 +85,7 @@ Fields FieldAlgorithms::fieldsByGradientPattern(MultiArray<2, float> & image)
     MultiArray<2, float> edgeField(image.shape());
     gaussianGradientMagnitude(image, edgeField, 1.0);
 
-    //Localize
+    //Localize, smooth for increased range of interaction (following local maxima)
     MultiArray<2, float> smoothed(valleyField.shape());
     gaussianSmoothMultiArray(valleyField, smoothed, 6.0);
     std::vector<Shape2> valleyLocals(localizePOI(smoothed));
@@ -209,43 +209,25 @@ std::vector<Shape2> FieldAlgorithms::localizePOIExample(const MultiArray<2, floa
 }
 
 
-bool FieldAlgorithms::contains(std::vector<Shape2> &vector, Shape2 &shape)
-{
-    for (Shape2 other : vector)
-    {
-        if (other == shape)
-        {
-            return true;
-        }
-    }
-    return false;
-}
+MultiArray<2, float > FieldAlgorithms::morphologyByGradientPattern(MultiArray<2, float> & image, MultiArray<2,float> &mask) {
+    
+    Shape2 shape(image.shape());
+    MultiArray<2, TinyVector<float, 2>> imageGradients(shape);
+    MultiArray<2, TinyVector<float, 2>> maskGradients(mask.shape());
+    gaussianGradientMultiArray(image, imageGradients, 2.0);
+    gaussianGradientMultiArray(mask, maskGradients, 2.0);
 
-void FieldAlgorithms::threshold(MultiArray<2, float> &basis, MultiArray<2, float> &target, float threshold)
-{
-    for (int j = 0; j < basis.size(); j++)
-    {
-        if (basis[j] < threshold)
-        {
-            target[j] = 0;
-        }
-    }
-};
+    //Threshold gradients with small magnitude, 
+    //because we only consider directions from now on.
+    MultiArray<2, float> magnitudes(shape);
+    gaussianGradientMagnitude(image, magnitudes, 3.0);
+    float thrhld = magnitudes[argMax(magnitudes)] * 0.3;
+    thresholdGrad(magnitudes, imageGradients, thrhld);
+    //The actual machting:
+    return matchGradients(imageGradients, maskGradients);
+   };
 
-void FieldAlgorithms::thresholdGrad(MultiArray<2, float> &basis, MultiArray<2, TinyVector<float, 2>> &target, float threshold)
-{
-    for (int j = 0; j < basis.size(); j++)
-    {
-        if (basis[j] < threshold)
-        {
-            target[j][0] = 0;
-            target[j][1] = 0;
-        }
-    }
-};
-
-
-MultiArray<2, float > FieldAlgorithms::matchGradients(MultiArray<2, TinyVector<float, 2> > &imageGradients, MultiArray<2, TinyVector<float, 2> > &mask)
+   MultiArray<2, float > FieldAlgorithms::matchGradients(MultiArray<2, TinyVector<float, 2> > &imageGradients, MultiArray<2, TinyVector<float, 2> > &mask)
 {
     MultiArray<2, float >  dest(imageGradients.shape());
     dest = 0;
@@ -277,9 +259,9 @@ MultiArray<2, float > FieldAlgorithms::matchGradients(MultiArray<2, TinyVector<f
 int FieldAlgorithms::compareVectors(TinyVector<float, 2> &compared, TinyVector<float, 2> &expected) 
 {
     int val = 0;
-    int xC = compared[0];
+    int xC = compared[0];//C - Compared
     int yC = compared[1];
-    int xE = expected[0];
+    int xE = expected[0];//E - Expected
     int yE = expected[1];
     if ((xC > 0 && xE > 0) || (xC < 0 && xE < 0))
     {
@@ -296,38 +278,43 @@ int FieldAlgorithms::compareVectors(TinyVector<float, 2> &compared, TinyVector<f
     return val;
 }
 
-MultiArray<2, float > FieldAlgorithms::morphologyByGradientPattern(MultiArray<2, float> & image, MultiArray<2,float> &mask) {
-    
-    Shape2 shape(image.shape());
-    MultiArray<2, TinyVector<float, 2>> imageGradients(shape);
-    MultiArray<2, TinyVector<float, 2>> maskGradients(mask.shape());
-    gaussianGradientMultiArray(image, imageGradients, 2.0);
-    gaussianGradientMultiArray(mask, maskGradients, 2.0);
 
-    //Threshold gradients with very small magnitude, 
-    //is a kind of smoothing noise, since we only consider directions from now on.
-    MultiArray<2, float> magnitudes(shape);
-    gaussianGradientMagnitude(image, magnitudes, 3.0);
-    float thrhld = magnitudes[argMax(magnitudes)] * 0.3;
-    thresholdGrad(magnitudes, imageGradients, thrhld);
-    //The actual machting:
-    MultiArray<2, float > gradientMatch = matchGradients(imageGradients, maskGradients);
+   //Utility Functions
+
    
-    return gradientMatch;
+
+   void FieldAlgorithms::thresholdGrad(MultiArray<2, float> &basis, MultiArray<2, TinyVector<float, 2>> &target, float threshold)
+{
+    for (int j = 0; j < basis.size(); j++)
+    {
+        if (basis[j] < threshold)
+        {
+            target[j][0] = 0;
+            target[j][1] = 0;
+        }
+    }
 };
 
-  MultiArray<2,int> FieldAlgorithms::binarizeByThreshold(MultiArray<2,float> &basis, float boarder)
-  {
-          float thrhld = basis[argMax(basis)] * boarder;
-          MultiArray<2,float> throlded(basis);
-          threshold(basis, throlded, thrhld);
-          MultiArray<2,int> binary(basis.shape());
-          for (int i = 0; i < throlded.size(); i++)
-          {
-              if (throlded[i] > 0)
-              {
-                  binary[i] = 1;
-              }
-          }
-          return binary;
-  }
+void FieldAlgorithms::threshold(MultiArray<2, float> &basis, MultiArray<2, float> &target, float threshold)
+{
+    for (int j = 0; j < basis.size(); j++)
+    {
+        if (basis[j] < threshold)
+        {
+            target[j] = 0;
+        }
+    }
+};
+
+
+bool FieldAlgorithms::contains(std::vector<Shape2> &vector, Shape2 &shape)
+{
+    for (Shape2 other : vector)
+    {
+        if (other == shape)
+        {
+            return true;
+        }
+    }
+    return false;
+}

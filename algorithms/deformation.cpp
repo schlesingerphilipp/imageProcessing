@@ -9,7 +9,7 @@
 
 int Deformation::scaleByRadius(Shape2 &local) 
 {
-    
+    //Build a representation of the distance for each pixel to some Shape2(x,y) position
     MultiArray<2, int> distanceToCenter(fields.edgeField.shape());
     for (int iX = 0; iX < distanceToCenter.width(); iX++)
     {
@@ -19,48 +19,24 @@ int Deformation::scaleByRadius(Shape2 &local)
             distanceToCenter(iX, iY) = distance;
         }
     }
-    //drawFunctions(distanceToCenter);
+
+    //arbitrary initialization 'start from small'
     RadiusResult two = getValueForRadius(distanceToCenter, 1);
     RadiusResult one = getValueForRadius(distanceToCenter, 2 );
-    /*MultiArray<2,int> plotTemperature(distanceToCenter.shape());
-    for(int i = 0; i < plotTemperature.width() / 2; i++)
-    {
-        int y = getRadiusRecursivly(distanceToCenter, one, two, i).radius;
-        plotTemperature(i, y) = 1;
-    }
-    exportImage(plotTemperature,"./../images/results/plotTemperature.png"); */
     RadiusResult rr = getRadiusRecursivly(distanceToCenter, one, two, 10.0);
-    //rr.radius = 10;
-    //draw a circle with the radius at the localization
+
+    //uncomment to get images of the three functions of radius and fit: How well does the area, the edge of the radius fit?
+    //drawFunctions(distanceToCenter);
+
+    //uncomment to get a nice result picture, where a circle with the fitted radius is drawn
     for (int i = 0; i < distanceToCenter.size();i++)
     {
-        if (distanceToCenter[i] == rr.radius)
+        for (int lineWidth = 0; lineWidth < 4; lineWidth++)
         {
-            fields.intensityField[i] = 255;
-        }
-        if (distanceToCenter[i] == rr.radius +1)
-        {
-            fields.intensityField[i] = 255;
-        }
-        if (distanceToCenter[i] == rr.radius +2)
-        {
-            fields.intensityField[i] = 255;
-        }
-        if (distanceToCenter[i] == rr.radius +3)
-        {
-            fields.intensityField[i] = 255;
-        }
-        if (distanceToCenter[i] == rr.radius -1)
-        {
-            fields.intensityField[i] = 255;
-        }
-        if (distanceToCenter[i] == rr.radius -2)
-        {
-            fields.intensityField[i] = 255;
-        }
-        if (distanceToCenter[i] == rr.radius -3)
-        {
-            fields.intensityField[i] = 255;
+            if (distanceToCenter[i] == rr.radius + lineWidth || distanceToCenter[i] == rr.radius - lineWidth)
+            {
+                fields.intensityField[i] = 0;
+            }
         }
     }
     return rr.radius; 
@@ -68,17 +44,6 @@ int Deformation::scaleByRadius(Shape2 &local)
 
 RadiusResult Deformation::getRadiusRecursivly(MultiArray<2, int> &distanceToCenter, RadiusResult &one, RadiusResult &two, float temperature)
 {
-    //std::cout << ".";
-    /*std::cout << "\n 1 radius:";
-    std::cout << one.radius;
-    std::cout << "\n 1 val:";
-    std::cout << one.getValue();
-    std::cout << "\n 2 radius:";
-    std::cout << two.radius;
-    std::cout << "\n 2 val:";
-    std::cout << two.getValue();
-    std::cout << "\n";
-    */
     if (temperature < 1)
     {
         return one;
@@ -89,20 +54,17 @@ RadiusResult Deformation::getRadiusRecursivly(MultiArray<2, int> &distanceToCent
     }
     float derivative = (one.getValue() - two.getValue()) / (one.radius - two.radius);
     derivative = derivative < 0 && derivative > -1 ? -1 : derivative > 0 && derivative < 1 ? 1 : derivative;
-    //std::cout << derivative;
-    int nextRadius = (one.radius + (derivative * temperature)); //one.radius + derivative;//
-        
+    int nextRadius = (one.radius + (derivative * temperature)); //TODO: rethink temperature and check for local maxima
+    //prevent values larger than the image
     nextRadius = nextRadius < 0 ? nextRadius * -1 : nextRadius;
-    //std::cout << nextRadius;
     nextRadius = nextRadius % (distanceToCenter.width() / 2);
-    //nextRadius = nextRadius < 0 ? distanceToCenter.width() / 2 : nextRadius > distanceToCenter.width() / 2 ? 1 : nextRadius;
+
     RadiusResult next = getValueForRadius(distanceToCenter, nextRadius);
     return getRadiusRecursivly(distanceToCenter, next, one, temperature * 0.95);
 };
 
 RadiusResult Deformation::getValueForRadius(MultiArray<2, int> &distanceToCenter, int radius)
 {
-
     float valley = 0;
     int valleyCount = 0;
     float edge = 0;
@@ -128,26 +90,6 @@ RadiusResult Deformation::getValueForRadius(MultiArray<2, int> &distanceToCenter
     return res;
 };
 
-std::vector<MultiArray<2,float>> Deformation::getFit(MultiArray<2, int> &distanceToCenter) 
-{
-    int length = distanceToCenter.width();
-    MultiArray<2,float> resEdge(Shape2(length, 1));
-    MultiArray<2,float> resValley(Shape2(length, 1));
-    MultiArray<2,float> resBoth(Shape2(length, 1));
-    for (int radius = 1; radius < distanceToCenter.width() / 2; radius++)
-    {
-        RadiusResult radi = getValueForRadius(distanceToCenter, radius);
-        resValley[radius] = radi.valley;
-        resBoth[radius] = radi.getValue();
-        resEdge[radius] = radi.edge;
-    }
-    std::vector<MultiArray<2,float>>result(3);
-    result[0] = resEdge;
-    result[1] = resValley;
-    result[2] = resBoth;
-    return result;
-}
-
 void Deformation::drawFunctions(MultiArray<2, int> &distanceToCenter)
 {
     std::vector<MultiArray<2,float>> functions = getFit(distanceToCenter);
@@ -166,7 +108,7 @@ void Deformation::drawFunctions(MultiArray<2, int> &distanceToCenter)
     exportImage(resEdge,"./../images/results/edgeFunction.png");
     exportImage(resValley,"./../images/results/valleyFunction.png");
     exportImage(resBoth ,"./../images/results/bothFunction.png");
-    /*std::cout << "\n expected Radius: ";
+    std::cout << "\n expected Radius: ";
     int rad = argMax(functions[2]);
     std::cout << rad;
     functions[2][rad] = 0;
@@ -184,5 +126,26 @@ void Deformation::drawFunctions(MultiArray<2, int> &distanceToCenter)
     functions[2][rad] = 0;
     rad = argMax(functions[2]);
     std::cout << "\n";
-    */
+    
+}
+
+//Calculates the fit for all radii
+std::vector<MultiArray<2,float>> Deformation::getFit(MultiArray<2, int> &distanceToCenter) 
+{
+    int length = distanceToCenter.width();
+    MultiArray<2,float> resEdge(Shape2(length, 1));
+    MultiArray<2,float> resValley(Shape2(length, 1));
+    MultiArray<2,float> resBoth(Shape2(length, 1));
+    for (int radius = 1; radius < distanceToCenter.width() / 2; radius++)
+    {
+        RadiusResult radi = getValueForRadius(distanceToCenter, radius);
+        resValley[radius] = radi.valley;
+        resBoth[radius] = radi.getValue();
+        resEdge[radius] = radi.edge;
+    }
+    std::vector<MultiArray<2,float>>result(3);
+    result[0] = resEdge;
+    result[1] = resValley;
+    result[2] = resBoth;
+    return result;
 }
