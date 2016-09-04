@@ -7,7 +7,7 @@
  using namespace vigra;
  using namespace vigra::multi_math;
 
-int Deformation::scaleByRadius(Shape2 &local) 
+int Deformation::run(int valleyWeight, int edgeWeight) 
 {
     //Build a representation of the distance for each pixel to some Shape2(x,y) position
     MultiArray<2, int> distanceToCenter(fields.edgeField.shape());
@@ -15,12 +15,13 @@ int Deformation::scaleByRadius(Shape2 &local)
     {
         for (int iY = 0; iY < distanceToCenter.height(); iY++)
         {           
-            int distance = std::sqrt(pow((local[0] - iX),2) + std::pow((local[1] - iY),2));
+            int distance = std::sqrt(pow((fields.specializedIrisValley[0] - iX),2) + std::pow((fields.specializedIrisValley[1] - iY),2));
             distanceToCenter(iX, iY) = distance;
         }
     }
 
     //arbitrary initialization 'start from small'
+    //TODO: init from template
     RadiusResult two = getValueForRadius(distanceToCenter, 1);
     RadiusResult one = getValueForRadius(distanceToCenter, 2 );
     RadiusResult rr = getRadiusRecursivly(distanceToCenter, one, two, 10.0);

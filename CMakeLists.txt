@@ -21,8 +21,8 @@ find_library(FFTWF_LIBRARY
 list(APPEND FFTW_LIBRARIES "${FFTWF_LIBRARY}")
 
 FIND_PACKAGE(Vigra)
-set(SOURCES utils/Fields.cpp algorithms/fieldAlgorithms.cpp algorithms/pyramid.cpp algorithms/deformation.cpp main.cpp)
-set(HEADERS utils/Fields.h algorithms/fieldAlgorithms.h algorithms/pyramid.h algorithms/deformation.h)
+set(SOURCES utils/Fields.cpp algorithms/fieldAlgorithms.cpp algorithms/pyramid.cpp algorithms/deformation.cpp fitting/FitTemplate.cpp main.cpp)
+set(HEADERS utils/Fields.h algorithms/fieldAlgorithms.h algorithms/pyramid.h algorithms/deformation.h fitting/Epoch.h fitting/FitTemplate.h)
 add_executable (main main.cpp)
 TARGET_INCLUDE_DIRECTORIES(main PUBLIC ${Vigra_INCLUDE_DIRS})
 TARGET_LINK_LIBRARIES(main vigraimpex ${FFTW_LIBRARIES})

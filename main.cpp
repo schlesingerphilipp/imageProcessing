@@ -9,6 +9,8 @@
 #include "algorithms/deformation.cpp"
 
 #include "utils/Fields.h"
+#include "fitting/FitTemplate.cpp"
+#include "fitting/Epoch.h"
 #include <string.h>
 #include <vector>
 
@@ -81,16 +83,15 @@ int exampleFit(char** argv)
     FloatArray imageArray(imageInfo.shape());  
     importImage(imageInfo, imageArray);
     Fields fieldsGrad = FieldAlgorithms::fieldsByGradientPattern(imageArray);
-    Deformation deformer(fieldsGrad);
-    for(Shape2 local : fieldsGrad.valleys)
-    {
-        int radius = deformer.scaleByRadius(local);
-        std::cout << "radius: ";
-        std::cout << radius;
-        std::cout << "\n";
-    }
+    //initialize Template with radius 1.
+    FitTemplate tmpl(fieldsGrad, 1);
+    //Execute the first epoch with these fixed weights
+    Epoch::run(tmpl, 1, true, 1, true);
+    std::cout << "radius: ";
+    std::cout << tmpl.radius;
+    std::cout << "\n";
     //We did draw circles according to the radius and its localization here
-    FloatArray visualize = deformer.fields.intensityField;
+    FloatArray visualize = tmpl.fields.intensityField;
     exportImage(visualize, "./../images/results/scaleResult.png");
     return 0;
 }

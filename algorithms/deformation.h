@@ -18,7 +18,7 @@ class Deformation {
     public:
         Fields fields;
         Deformation(Fields &f):fields(f){};
-        int scaleByRadius(Shape2 &local);
+        int run(int valleyWeight, int edgeWeight);
 
 };
 #endif 
