@@ -38,6 +38,7 @@ int makeFields(char** argv) {
     exportImage(whatsInPeakGrad, "./../images/results/whatsInPeakGrad.png");
     FloatArray whatsInValleyGrad = fieldsGrad.intensityField * fieldsGrad.valleyField;
     exportImage(whatsInValleyGrad, "./../images/results/whatsInValleyGrad.png");
+    exportImage(fieldsGrad.edgeField, "./../images/results/edges.png");
 
     std::cout << "By scaling Laplasian of Gaussian\n";
     Fields fieldsLoG = FieldAlgorithms::fieldsByLaplasian(imageArray);

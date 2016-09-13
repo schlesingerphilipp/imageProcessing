@@ -55,9 +55,9 @@ RadiusResult Deformation::getRadiusRecursivly(MultiArray<2, int> &distanceToCent
     }
     float derivative = (one.getValue() - two.getValue()) / (one.radius - two.radius);
     derivative = derivative < 0 && derivative > -1 ? -1 : derivative > 0 && derivative < 1 ? 1 : derivative;
-    int nextRadius = (one.radius + (derivative * temperature)); //TODO: rethink temperature and check for local maxima
+    int nextRadius = (one.radius + (derivative * temperature)); //TODO: Metropolis
     //prevent values larger than the image
-    nextRadius = nextRadius < 0 ? nextRadius * -1 : nextRadius;
+    nextRadius = nextRadius < 0 ? distanceToCenter.width() / 2 - nextRadius : nextRadius;
     nextRadius = nextRadius % (distanceToCenter.width() / 2);
 
     RadiusResult next = getValueForRadius(distanceToCenter, nextRadius);
